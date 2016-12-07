@@ -160,6 +160,10 @@ $first_conf_id = $conf_data['first_id'];
 			{
 				background-color: #ffa;
 			}
+			.running
+			{
+				background-color: #8f8;
+			}
 			.day_header
 			{
 				text-align:center;
@@ -195,6 +199,7 @@ $(function() {
 	
 	var items = [];
 	var day_headers = [];
+	var running_evt_id;
 	
 	var spinners = [];
 	var switches_req_arr = [];
@@ -327,6 +332,8 @@ $(function() {
 				var dates = [];
 				var dates_by_id = [];
 				
+				//-------- сортировка по дате -----------
+				
 				for(var i in day_ids)
 				{
 					var day_id = day_ids[i];
@@ -352,6 +359,8 @@ $(function() {
 					}	
 				}
 						
+				//------------------------------------------------------
+				
 				var day_num = 0;
 				
 				for(var i in day_ids_sorted)
@@ -380,7 +389,12 @@ $(function() {
 							
 							items[day_id][item.evt_id] = item;
 							
-							append_table(make_day_item(item));
+							var $tr = make_day_item(item);
+							
+							append_table($tr);
+							
+							
+							if(item.evt_id == running_evt_id) $tr.addClass('running');
 						}
 					}
 	
@@ -419,9 +433,14 @@ $(function() {
 	//------------------------------------------------------------------
 	$('body').on('click', '.btn_run_item', function(){
 		
-		var item_id = $(this).parent().parent().attr('data-evt_id');
+		var $tr = $(this).parent().parent();
+		
+		running_evt_id = $tr.attr('data-evt_id');
+		
+		$("#day_table tr").removeClass('running');
+		$tr.addClass('running');
 
-		alert(item_id);
+		//alert(running_evt_id);
 	});
 	
 	//------------------------------------------------------------------
