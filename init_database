@@ -1,0 +1,8 @@
+mysql -u root -p
+
+CREATE USER 'tslrussia'@'localhost' IDENTIFIED BY 'hkj4gTgjk';
+
+create database tsl_events;
+
+GRANT ALL ON tsl_events.* TO 'tslrussia'@'localhost';
+
