@@ -118,8 +118,8 @@ if(isset($_REQUEST['function']))
 		break;
 		
 		//------------------------------------------------------------------
-		case 'add_conf':
-			$response = add_conf();
+		case 'save_conf':
+			$response = save_conf();
 		break;
 		
 		//------------------------------------------------------------------
@@ -164,6 +164,8 @@ $dbh = $connect['dbh'];
 $conf_data = get_confs_dd();
 
 $first_conf_id = $conf_data['first_id'];
+$first_beg_dt = $conf_data['first_beg_dt'];
+$date_now = $conf_data['date_now'];
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -226,6 +228,8 @@ $(function() {
 	var script_name = '<?= basename($_SERVER["SCRIPT_FILENAME"]); ?>';
 	
 	var conf_id = <?= $first_conf_id ?>;
+	var conf_beg_dt = '<?= $first_beg_dt ?>';
+	var date_now = '<?= $date_now ?>';
 	
 	var day_fields = <?= json_encode($day_fields) ?>;
 	
@@ -395,6 +399,7 @@ $(function() {
 	$('body').on('change', '#conf_dd', function(){
 		
 		conf_id = $(this).val();
+		conf_beg_dt = $(this).find('option:selected').attr('data-evt_beg_dt');
 //alert(conf_id);
 		get_table();
 	});
@@ -696,7 +701,7 @@ $(function() {
 	function append_table(tr){ $("#day_table").append(tr); }
 
 	//------------------------------------------------------------------
-	function make_day_header(day_num, day_id)
+	function make_day_header(day_num, day_id, day_beg_dt)
 	{
 		var day_header = day_headers[day_id];
 		var title = 'DAY '+day_num;
@@ -714,14 +719,13 @@ $(function() {
 	
 	//------------------------------------------------------------------
 	$('body').on('click', '.tr_day_header', function(){
-		
-		//close_edit_items();
-		
-		var $tr = $(this);
 
-		var day_id = $tr.attr('data-evt_id');
-		var day_num = $tr.attr('data-day_num');
+		var day_id = $(this).attr('data-evt_id');
 		var day_header = day_headers[day_id];
+		
+		form_day.find('input[name=evt_id]').val( day_id );
+		form_day.find('input[name=evt_beg_dt]').val( day_header.evt_beg_dt );
+		form_day.find('input[name=evt_title]').val( day_header.evt_title );
 		
 		dialog_day.dialog('open');
 		
@@ -740,16 +744,17 @@ $(function() {
 	function save_day_header()
 	{
 
-		var item_id = $(this).parent().parent().attr('data-evt_id');
+		//var item_id = $(this).parent().parent().attr('data-evt_id');
 
 		$.ajax({
-			url: script_name+'?function=save_day_header&conf_id='+conf_id+'&evt_id='+item_id+'&'+$('#day_form').serialize(),
+			url: script_name+'?function=save_day_header&conf_id='+conf_id+'&'+form_day.serialize(),
 			dataType: 'json',
 			success: function(response){
 				
 				if(response.status == 'ok')
 				{
 					draw_table(response);
+					dialog_day.dialog('close');
 				}
 				else
 				{
@@ -767,7 +772,7 @@ $(function() {
 	function delete_day_header()
 	{
 
-		var item_id = $(this).parent().parent().attr('data-evt_id');
+		var item_id = form_day.find('input[name="evt_id"]').val();
 
 		$.ajax({
 			url: script_name+'?function=delete_day_header&conf_id='+conf_id+'&evt_id='+item_id,
@@ -777,6 +782,7 @@ $(function() {
 				if(response.status == 'ok')
 				{
 					draw_table(response);
+					dialog_day.dialog('close');
 				}
 				else
 				{
@@ -942,12 +948,18 @@ $(function() {
 	//------------------------------------------------------------------
 	$('body').on('click', '#btn_add_conf', function(){
 		
-		$('div#add_conf').html('<form id="add_conf_form">'
-			+ 'дата: <input type="text" name="evt_beg_dt" value="<?= date("Y-m-d") ?>"/>&nbsp;&nbsp;&nbsp;'
-			+ 'название: <input type="text" name="evt_title" value=""/>&nbsp;&nbsp;&nbsp;'
-			+ '<input type="button" id="save_new_conf" value="SAVE"/>'
-			+ '<input type="button" id="btn_add_conf_cancel" value="cancel"/>'
-			+'</form>');
+		
+		form_conf.find('input[name="evt_id"]').val(0);
+		form_conf.find('input[name="evt_beg_dt"]').val(date_now);
+		
+		dialog_conf.dialog('open');
+		
+		//$('div#add_conf').html('<form id="add_conf_form">'
+		//	+ 'дата: <input type="text" name="evt_beg_dt" value="<?= date("Y-m-d") ?>"/>&nbsp;&nbsp;&nbsp;'
+		//	+ 'название: <input type="text" name="evt_title" value=""/>&nbsp;&nbsp;&nbsp;'
+		//	+ '<input type="button" id="save_new_conf" value="SAVE"/>'
+		//	+ '<input type="button" id="btn_add_conf_cancel" value="cancel"/>'
+		//	+'</form>');
 	});
 	
 	//------------------------------------------------------------------
@@ -955,20 +967,20 @@ $(function() {
 	function save_conf()
 	{
 
-		var item_id = $(this).parent().parent().attr('data-evt_id');
+		//var item_id = $(this).parent().parent().attr('data-evt_id');
 
 		$.ajax({
-			url: script_name+'?function=add_conf&'+$('#add_conf_form').serialize(),
+			url: script_name+'?function=save_conf&'+form_conf.serialize(),
 			dataType: 'json',
 			success: function(response){
 				
 				if(response.status == 'ok')
 				{
 					draw_table(response);
-		
 					conf_id = response.new_conf_id;
-					
+					conf_beg_dt = response.new_beg_dt;
 					$('div#div_conf_dd').html(response.confs_dd.html);
+					dialog_conf.dialog('close');
 				}
 				else
 				{
@@ -1015,14 +1027,12 @@ $(function() {
 	}
 	
 	//------------------------------------------------------------------
-	$('body').on('click', '#btn_add_conf_cancel', function(){
-		
-		$('div#add_conf').html('');
-	});
-	
-	//------------------------------------------------------------------
 	$('body').on('click', '#conf_title', function(){
 		
+		form_conf.find('input[name="evt_id"]').val(conf_id);
+		form_conf.find('input[name="evt_beg_dt"]').val(conf_beg_dt);
+		form_conf.find('input[name="evt_title"]').val($(this).find('h2').text());
+
 		dialog_conf.dialog('open');
 	});
 	
@@ -1081,9 +1091,7 @@ function make_button_td(mode, new_flag)
 </table>
 </form>
 
-<div id="form_conf" title="edit data">
-  <p class="validateTips">куку</p>
- 
+<div id="form_conf" title="редактирование заголовка конференции">
   <form>
     <fieldset>
       <input type="hidden" name="evt_id" id="evt_id"/>
@@ -1100,8 +1108,8 @@ function make_button_td(mode, new_flag)
   </form>
 </div>
 
-<div id="form_day" title="edit data">
-  <p class="validateTips">торопышка был голодный.</p>
+<div id="form_day" title="редактирование заголовока дня">
+  <!-- p class="validateTips">торопышка был голодный.</p -->
  
   <form>
     <fieldset>
@@ -1120,7 +1128,7 @@ function make_button_td(mode, new_flag)
   </form>
 </div>
 
-<div id="form_item" title="edit data">
+<div id="form_item" title="редактирование события">
   <p class="validateTips">проглотил утюг холодный.</p>
  
   <form>
@@ -1426,11 +1434,12 @@ function get_confs_dd()
 	if(is_array($conf_data) && count($conf_data)>0)
 	{
 		$first_id = $conf_data[0]['evt_id'];
+		$first_beg_dt = $conf_data[0]['evt_beg_dt'];
 		
 		foreach($conf_data as $row)
 		{
 			$html .= '
-    <option value="'.$row['evt_id'].'">'.$row['evt_title'].'</option>';
+    <option data-evt_beg_dt="'.$row['evt_beg_dt'].'" value="'.$row['evt_id'].'">'.$row['evt_title'].'</option>';
 		}
 		
 	}
@@ -1445,7 +1454,7 @@ function get_confs_dd()
 	$html .= '
   </select>';
 
-	return array('html'=>$html, 'first_id'=>$first_id);
+	return array('html'=>$html, 'first_id'=>$first_id, 'first_beg_dt'=>$first_beg_dt, 'date_now'=>date("Y-m-d"));
 }
 //=======================================================================================================
 function get_conf_list($p_evt_id=null)
@@ -1606,7 +1615,7 @@ function delete_day_header()
 }
 
 //=======================================================================================================
-function add_conf()
+function save_conf()
 {
 	global $dbh;
 	
@@ -1618,15 +1627,33 @@ function add_conf()
 
 	$result->close();
 	
-	//------------------------------------------------------------------
-	
-	$query = "INSERT INTO event(evt_title, evt_evttp_id, evt_beg_dt) VALUES('".$_REQUEST['evt_title']."', ".$evttp_id.", '".$_REQUEST['evt_beg_dt']."')";
-	
-	if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'add_conf() insert error', 'sql'=>$query);
+	if(is_valid_req_id('evt_id'))
+	{
+		//------------------------------------------------------------------
+		$query = "UPDATE
+					event
+				SET 
+					evt_title  = '".$_REQUEST['evt_title']."',
+					evt_beg_dt = '".$_REQUEST['evt_beg_dt']."'
+				WHERE
+					evt_id = ".$_REQUEST['evt_id'];
 		
-		$new_id = $dbh->insert_id;
+		if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'add_conf(): event UPDATE error', 'sql'=>$query);
 		
-	return array_merge( get_main_table($new_id), array('new_conf_id'=>$new_id, 'confs_dd'=>get_confs_dd(), 'sql'=>$query) );
+		$new_id = $_REQUEST['evt_id'];
+	}
+	else
+	{
+		//------------------------------------------------------------------
+		
+		$query = "INSERT INTO event(evt_title, evt_evttp_id, evt_beg_dt) VALUES('".$_REQUEST['evt_title']."', ".$evttp_id.", '".$_REQUEST['evt_beg_dt']."')";
+		
+		if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'add_conf(): event INSERT error', 'sql'=>$query);
+			
+			$new_id = $dbh->insert_id;
+	}		
+		
+	return array_merge( get_main_table($new_id), array('new_conf_id'=>$new_id, 'new_beg_dt'=>$_REQUEST['evt_beg_dt'], 'confs_dd'=>get_confs_dd(), 'sql'=>$query) );
 }
 //=======================================================================================================
 function delete_conf()
