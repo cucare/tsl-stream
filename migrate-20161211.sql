@@ -1,7 +1,12 @@
 use tsl_events;
 
-alter table event add column evt_media_file varchar(1000);
+drop table if exists event_media;
 
-alter table event add column evt_duration varchar(9);
-
-alter table event add column evt_run tinyint default 0;
+create table event_media
+(
+	evtmd_id int not null auto_increment primary key,
+	evtmd_evt_id int not null,
+	evtmd_run_flag tinyint default 0,
+	evtmd_media_file varchar(1000) default '',
+	evtmd_duration varchar(9) default '00:00:00'
+);

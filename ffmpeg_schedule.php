@@ -1,20 +1,21 @@
 <?php
 
-$add_conf_button = '<input type="button" id="btn_add_conf"/ value="add new conference">';
-
 $day_fields = array(
 		'evt_upper_id' => array(
+			'table'=>'event',
 			'type' => 'hidden', 
 			'td' => 'skip',
 			'new' => 'db',
 			'insert'=>true
 		), 
 		'evt_id' => array(
+			'table'=>'event',
 			'type' => 'hidden', 
 			'td' => 'skip',
 			'new' => 0
 		), 
 		'evt_beg_dt' => array(
+			'table'=>'event',
 			'type' => 'db', 
 			'view' => 'show',
 			'new' => 'day_beg_dt', 
@@ -23,6 +24,7 @@ $day_fields = array(
 			'insert'=>true
 		), 
 		'evt_beg_tm' => array(
+			'table'=>'event',
 			'type' => 'db', 
 			'view' => 'show',
 			'new' => '', 
@@ -31,13 +33,15 @@ $day_fields = array(
 			'insert'=>true
 		), 
 		'evt_title' => array(
+			'table'=>'event',
 			'type' => 'db', 
 			'new' => '', 
 			'edit' => 'input',
 			'update'=>true,
 			'insert'=>true
 		),
-		'evt_media_file' => array(
+		'evtmd_media_file' => array(
+			'table'=>'event_media',
 			'type' => 'db',
 			'src' => 'media_list',
 			 
@@ -46,7 +50,8 @@ $day_fields = array(
 			'update'=>true,
 			'insert'=>true
 		),
-		'evt_duration' => array(
+		'evtmd_duration' => array(
+			'table'=>'event_media',
 			'type' => 'db', 
 			'src' => 'media_list',
 			'new' => 'option', 
@@ -238,7 +243,7 @@ $(function() {
 	
 	var items = [];
 	var day_headers = [];
-	var running_evt_id;
+	//var running_evt_id;
 	
 	var spinners = [];
 	var switches_req_arr = [];
@@ -309,6 +314,47 @@ $(function() {
 	
 	//==================================================================
 	
+	//------------------------------------------------------------------
+	dialog_conf = $( "#form_conf" ).dialog({
+      autoOpen: false,
+      height: 500,
+      width: 700,
+      modal: true,
+      buttons: {
+        "Save": save_conf,
+        Cancel: function() {
+          dialog_conf.dialog( "close" );
+        },
+        'Delete': delete_conf
+      },
+      close: function() {
+        dialog_conf.find( "form" )[0].reset();
+      }
+    });
+ 
+    form_conf = dialog_conf.find( "form" );
+    
+	//------------------------------------------------------------------
+	dialog_day = $( "#form_day" ).dialog({
+      autoOpen: false,
+      height: 500,
+      width: 700,
+      modal: true,
+      buttons: {
+        "Save": save_day_header,
+        Cancel: function() {
+          dialog_day.dialog( "close" );
+        },
+        'Delete': delete_day_header
+      },
+      close: function() {
+        dialog_day.find( "form" )[0].reset();
+      }
+    });
+ 
+    form_day = dialog_day.find( "form" );
+    
+	//------------------------------------------------------------------
 	dialog_item = $( "#form_item" ).dialog({
       autoOpen: false,
       height: 500,
@@ -318,7 +364,8 @@ $(function() {
         "Save": save_item,
         Cancel: function() {
           dialog_item.dialog( "close" );
-        }
+        },
+        'Delete': delete_item
       },
       close: function() {
         dialog_item.find( "form" )[0].reset();
@@ -326,15 +373,6 @@ $(function() {
     });
  
     form_item = dialog_item.find( "form" );
-    
-    form_item.on( "submit", function( event ) {
-      event.preventDefault();
-      addUser();
-    });	
-    
-    $( "#btn_get_media_list" ).button().on( "click", function() {
-      dialog_item.dialog( "open" );
-    });
     
 	//------------------------------------------------------------------
 	$("#btn_add_day").on('click', function(){
@@ -462,7 +500,8 @@ $(function() {
 							append_table($tr);
 							
 							
-							if(item.evt_id == running_evt_id) $tr.addClass('running');
+							//if(item.evt_id == running_evt_id) $tr.addClass('running');
+							if(item.evtmd_run_flag == 1) $tr.addClass('running');
 						}
 					}
 	
@@ -525,7 +564,7 @@ $(function() {
 					form_item.find('input[name="evt_title"]').val(item[evt_id].evt_title);
 					
 					form_item.find('select option').each(function(){
-						if($(this).val() == item[evt_id].evt_media_file) $(this).prop('selected', true);
+						if($(this).val() == item[evt_id].evtmd_media_file) $(this).prop('selected', true);
 					});
 				}
 				
@@ -541,12 +580,30 @@ $(function() {
 		
 		var $tr = $(this).parent().parent();
 		
-		running_evt_id = $tr.attr('data-evt_id');
+		var evt_id = $tr.attr('data-evt_id');
 		
-		$("#day_table tr").removeClass('running');
-		$tr.addClass('running');
+		$.ajax({
+			url: script_name+'?function=run_event&conf_id='+conf_id + '&evt_id='+evt_id,
+			dataType: 'json',
+			success: function(response){
+				
+				if(response.status == 'ok')
+				{
+					$("#day_table tr").removeClass('running');
+					
+					$tr.children().removeClass('updated');
 
-		//alert(running_evt_id);
+					$tr.removeClass('updated').addClass('running');
+				}
+				else
+				{
+					alert(response.errm);
+				}
+			},
+			error: function(response){
+					alert('server error');
+			}
+		});
 	});
 	
 	//------------------------------------------------------------------
@@ -554,12 +611,10 @@ $(function() {
 	
 	function save_item()
 	{
-		//alert(form_item.find('select').prop('selectedIndex'));
-		//alert(form_item.find('option:selected').val());
 		var duration = form_item.find('option:selected').attr('data-duration');
 
 		$.ajax({
-			url: script_name+'?function=save_item&conf_id='+conf_id + '&evt_duration='+duration + '&'+form_item.serialize(),
+			url: script_name+'?function=save_item&conf_id='+conf_id + '&evtmd_duration='+duration + '&'+form_item.serialize(),
 			dataType: 'json',
 			success: function(response){
 				
@@ -567,7 +622,10 @@ $(function() {
 				{
 					draw_table(response);
 
-					$('#day_table tr[data-evt_id='+response.upd_id+']').children('td').addClass('updated');
+					if( ! $('#day_table tr[data-evt_id='+response.upd_id+']').hasClass('running') )
+					{
+						$('#day_table tr[data-evt_id='+response.upd_id+']').children('td').addClass('updated');
+					}
 					
 					dialog_item.dialog('close');
 				}
@@ -585,11 +643,15 @@ $(function() {
 	}
 	
 	//------------------------------------------------------------------
-	$('body').on('click', '.btn_delete_item', function(){
+	//$('body').on('click', '.btn_delete_item', function(){
+	function delete_item()
+	{
 		
 		if( !confirm('are you sure?') ) return false;
+
+		var item_id = form_item.find('input[name="evt_id"]').val();
 		
-		var item_id = $(this).parent().parent().attr('data-evt_id');
+		//var item_id = $(this).parent().parent().attr('data-evt_id');
 
 		$.ajax({
 			url: script_name+'?function=delete_item&conf_id='+conf_id+'&evt_id='+item_id,
@@ -599,10 +661,12 @@ $(function() {
 				if(response.status == 'ok')
 				{
 					draw_table(response);
+
+					dialog_item.dialog('close');
 				}
 				else
 				{
-					alert('delete error');
+					alert(response.errm);
 				}
 			},
 			error: function(response){
@@ -611,7 +675,7 @@ $(function() {
 		});
 
 		//alert(item_id);
-	});
+	}
 	
 	//------------------------------------------------------------------
 	$('body').on('click', '.btn_cancel_item', function(){
@@ -651,7 +715,7 @@ $(function() {
 	//------------------------------------------------------------------
 	$('body').on('click', '.tr_day_header', function(){
 		
-		close_edit_items();
+		//close_edit_items();
 		
 		var $tr = $(this);
 
@@ -659,19 +723,22 @@ $(function() {
 		var day_num = $tr.attr('data-day_num');
 		var day_header = day_headers[day_id];
 		
-		$tr.replaceWith('<tr class="tr_day_header_edit day_header" data-evt_id='+day_id+' data-day_num='+day_num+'><td colspan="'+(day_span*1-1)+'">'
-			+'<input type="text" name="evt_beg_dt" value="'+day_header.evt_beg_dt+'"/>'
-			+'<input type="text" name="evt_title" value="'+day_header.evt_title+'"/>'
-			+'</td><td>'
-			+'<input type="button" class="btn_day_header_save" value="SAVE"/>'
-			+'<input type="button" class="btn_day_header_cancel" value="cancel"/>'
-			+'<input type="button" class="btn_day_header_delete" value="DEL"/>'
-			+'</td></tr>');
-//alert(day_id);
+		dialog_day.dialog('open');
+		
+		//$tr.replaceWith('<tr class="tr_day_header_edit day_header" data-evt_id='+day_id+' data-day_num='+day_num+'><td colspan="'+(day_span*1-1)+'">'
+		//	+'<input type="text" name="evt_beg_dt" value="'+day_header.evt_beg_dt+'"/>'
+		//	+'<input type="text" name="evt_title" value="'+day_header.evt_title+'"/>'
+		//	+'</td><td>'
+		//	+'<input type="button" class="btn_day_header_save" value="SAVE"/>'
+		//	+'<input type="button" class="btn_day_header_cancel" value="cancel"/>'
+		//	+'<input type="button" class="btn_day_header_delete" value="DEL"/>'
+		//	+'</td></tr>');
 	});
 	
 	//------------------------------------------------------------------
-	$('body').on('click', '.btn_day_header_save', function(){
+	//$('body').on('click', '.btn_day_header_save', function(){
+	function save_day_header()
+	{
 
 		var item_id = $(this).parent().parent().attr('data-evt_id');
 
@@ -693,10 +760,12 @@ $(function() {
 					alert('server error');
 			}
 		});
-	});
+	}
 	
 	//------------------------------------------------------------------
-	$('body').on('click', '.btn_day_header_delete', function(){
+	//$('body').on('click', '.btn_day_header_delete', function(){
+	function delete_day_header()
+	{
 
 		var item_id = $(this).parent().parent().attr('data-evt_id');
 
@@ -718,13 +787,13 @@ $(function() {
 					alert('server error');
 			}
 		});
-	});
+	}
 	
-	//------------------------------------------------------------------
-	$('body').on('click', '.btn_day_header_cancel', function(){
-		
-		close_edit_items();
-	});
+	///------------------------------------------------------------------
+	//$('body').on('click', '.btn_day_header_cancel', function(){
+	//	
+	//	close_edit_items();
+	//});
 
 	//------------------------------------------------------------------
 	function close_edit_items(){
@@ -882,7 +951,9 @@ $(function() {
 	});
 	
 	//------------------------------------------------------------------
-	$('body').on('click', '#save_new_conf', function(){
+	//$('body').on('click', '#save_new_conf', function(){
+	function save_conf()
+	{
 
 		var item_id = $(this).parent().parent().attr('data-evt_id');
 
@@ -898,8 +969,6 @@ $(function() {
 					conf_id = response.new_conf_id;
 					
 					$('div#div_conf_dd').html(response.confs_dd.html);
-		
-					$('div#add_conf').html('<?= $add_conf_button ?>');
 				}
 				else
 				{
@@ -912,10 +981,12 @@ $(function() {
 		});
 
 		//alert(item_id);
-	});
+	}
 	
 	//------------------------------------------------------------------
-	$('body').on('click', '#delete_conf', function(){
+	//$('body').on('click', '#delete_conf', function(){
+	function delete_conf()
+	{
 
 		$.ajax({
 			url: script_name+'?function=delete_conf&conf_id='+conf_id,
@@ -929,8 +1000,6 @@ $(function() {
 					conf_id = response.conf_id;
 					
 					$('div#div_conf_dd').html(response.confs_dd.html);
-		
-					$('div#add_conf').html('<?= $add_conf_button ?>');
 				}
 				else
 				{
@@ -943,13 +1012,20 @@ $(function() {
 		});
 
 		//alert(item_id);
-	});
+	}
 	
 	//------------------------------------------------------------------
 	$('body').on('click', '#btn_add_conf_cancel', function(){
 		
-		$('div#add_conf').html('<?= $add_conf_button ?>');
+		$('div#add_conf').html('');
 	});
+	
+	//------------------------------------------------------------------
+	$('body').on('click', '#conf_title', function(){
+		
+		dialog_conf.dialog('open');
+	});
+	
 	
 });
 //======================================================================
@@ -994,19 +1070,58 @@ function make_button_td(mode, new_flag)
 
 <div id="div_conf_dd"><?= $conf_data['html'] ?></div><br/>
 
-<div id="add_conf"><?= $add_conf_button ?></div><br/>
+<div id="add_conf"><input type="button" id="btn_add_conf" value="add conference"/></div><br/>
 
 <input type="button" id="delete_conf" value="delete conference"/>
 
-<h2 id="conf_title"></h2>
+<div id="conf_title"><h2></h2></div>
 
 <form name="day_form" id="day_form" method="post">
 <table class="day_table" id="day_table" width="70%">
 </table>
 </form>
 
-<div id="form_item" title="edit data">
+<div id="form_conf" title="edit data">
+  <p class="validateTips">куку</p>
+ 
+  <form>
+    <fieldset>
+      <input type="hidden" name="evt_id" id="evt_id"/>
+
+      <label for="evt_beg_dt">Дата начала</label>
+      <input type="text" name="evt_beg_dt" id="evt_beg_dt" class="text ui-widget-content ui-corner-all"/>
+      
+      <label for="evt_title">Название</label>
+      <input type="text" name="evt_title" id="evt_title" class="text ui-widget-content ui-corner-all"/>
+      
+      <!-- Allow form submission with keyboard without duplicating the dialog button -->
+      <input type="submit" tabindex="-1" style="position:absolute; top:-1000px"/>
+    </fieldset>
+  </form>
+</div>
+
+<div id="form_day" title="edit data">
   <p class="validateTips">торопышка был голодный.</p>
+ 
+  <form>
+    <fieldset>
+      <input type="hidden" name="evt_upper_id" id="evt_upper_id"/>
+      <input type="hidden" name="evt_id" id="evt_id"/>
+
+      <label for="evt_beg_dt">Дата начала</label>
+      <input type="text" name="evt_beg_dt" id="evt_beg_dt" class="text ui-widget-content ui-corner-all"/>
+      
+      <label for="evt_title">Название</label>
+      <input type="text" name="evt_title" id="evt_title" class="text ui-widget-content ui-corner-all"/>
+      
+      <!-- Allow form submission with keyboard without duplicating the dialog button -->
+      <input type="submit" tabindex="-1" style="position:absolute; top:-1000px"/>
+    </fieldset>
+  </form>
+</div>
+
+<div id="form_item" title="edit data">
+  <p class="validateTips">проглотил утюг холодный.</p>
  
   <form>
     <fieldset>
@@ -1022,8 +1137,8 @@ function make_button_td(mode, new_flag)
       <label for="evt_title">Название</label>
       <input type="text" name="evt_title" id="evt_title" class="text ui-widget-content ui-corner-all"/>
  
-      <label for="evt_media_file">Файл</label>
-      <select name="evt_media_file" id="evt_media_file"></select>
+      <label for="evtmd_media_file">Файл</label>
+      <select name="evtmd_media_file" id="evtmd_media_file"></select>
       
       <!-- Allow form submission with keyboard without duplicating the dialog button -->
       <input type="submit" tabindex="-1" style="position:absolute; top:-1000px"/>
@@ -1033,8 +1148,6 @@ function make_button_td(mode, new_flag)
 
 <input type="button" id="btn_add_day" value="add new day"/>
 
-<hr/>
-<input type="button" id="btn_get_media_list" value="get list"/>
 
 </body>
 </html>
@@ -1149,10 +1262,12 @@ function get_day($p_day_id)
 		evt_beg_tm,
 		evt_end_dt,
 		evt_end_tm,
-		evt_media_file,
-		evt_duration
+		evtmd_media_file,
+		evtmd_duration,
+		evtmd_run_flag
 	FROM
 		event
+		LEFT JOIN event_media ON(evtmd_evt_id = evt_id)
 	WHERE
 		evt_upper_id = ".$p_day_id."
 	ORDER BY	
@@ -1210,14 +1325,34 @@ function save_item()
 		$updates = array();
 		foreach($day_fields as $fld => $def)
 		{
-			if(isset($def['update']) && $def['update']) array_push($updates, $fld." = '".$_REQUEST[$fld]."'");
+			if(isset($def['table']) && $def['table']=='event' && isset($def['update']) && $def['update']) array_push($updates, $fld." = '".$_REQUEST[$fld]."'");
 		}
 		
 		$query .= implode(', ', $updates) . " WHERE evt_id = ".$_REQUEST['evt_id'];
 		
-		if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'UPDATE error', 'sql'=>$query);
+		if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'save_item(): event UPDATE error', 'sql'=>$query);
 		
 		$upd_id = $_REQUEST['evt_id'];
+
+		//------------------------------------------------------------------
+		$query = "DELETE FROM event_media WHERE evtmd_evt_id = ".$_REQUEST['evt_id'];
+		
+		if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'save_item(): event_media DELETE error', 'sql'=>$query);
+
+		//-------------------------------------------------
+		//$query = "UPDATE event_media SET ";
+		//
+		//$updates = array();
+		//foreach($day_fields as $fld => $def)
+		//{
+		//	if(isset($def['table']) && $def['table']=='event_media' && isset($def['update']) && $def['update']) array_push($updates, $fld." = '".$_REQUEST[$fld]."'");
+		//}
+		//
+		//$query .= implode(', ', $updates) . " WHERE evtmd_evt_id = ".$_REQUEST['evt_id'];
+		//
+		//if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'save_item(): event_media UPDATE error', 'sql'=>$query);
+		
+		//$upd_id = $_REQUEST['evt_id'];
 	}
 	else //------- new ----------
 	{
@@ -1235,7 +1370,7 @@ function save_item()
 		$flds = array();
 		foreach($day_fields as $fld => $def)
 		{
-			if(isset($def['insert']) && $def['insert']) array_push($flds, $fld);
+			if(isset($def['table']) && $def['table']=='event' && isset($def['insert']) && $def['insert']) array_push($flds, $fld);
 		}
 
 		$query .= implode(', ', $flds) . ", evt_evttp_id) VALUES(";
@@ -1243,16 +1378,40 @@ function save_item()
 		$vals = array();
 		foreach($day_fields as $fld => $def)
 		{
-			if(isset($def['insert']) && $def['insert']) array_push($vals, "'".$_REQUEST[$fld]."'");
+			if(isset($def['table']) && $def['table']=='event' && isset($def['insert']) && $def['insert']) array_push($vals, "'".$_REQUEST[$fld]."'");
 		}
 		
 		$query .= implode(', ', $vals) . ", ".$evttp_id.")";
 		
-		if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'insert error', 'sql'=>$query);
+		if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'save_item(): event INSERT error', 'sql'=>$query);
 		
 		$upd_id = $dbh->insert_id;
+		//------------------------------------------------------------------
+
+		
+		//$upd_id = $dbh->insert_id;
 	}
 	
+	$query = "INSERT INTO event_media(";
+	
+	$flds = array();
+	foreach($day_fields as $fld => $def)
+	{
+		if(isset($def['table']) && $def['table']=='event_media' && isset($def['insert']) && $def['insert']) array_push($flds, $fld);
+	}
+
+	$query .= implode(', ', $flds) . ", evtmd_evt_id) VALUES(";
+
+	$vals = array();
+	foreach($day_fields as $fld => $def)
+	{
+		if(isset($def['table']) && $def['table']=='event_media' && isset($def['insert']) && $def['insert']) array_push($vals, "'".$_REQUEST[$fld]."'");
+	}
+	
+	$query .= implode(', ', $vals) . ", ".$upd_id.")";
+	
+	if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'save_item(): event_media INSERT error', 'sql'=>$query);
+
 	return array_merge( get_main_table($_REQUEST['conf_id']), array('upd_id'=>$upd_id, 'sql'=>$query) );
 }
 
@@ -1380,9 +1539,24 @@ function delete_item()
 {
 	global $dbh;
 	
+	//------------------------------------------------------------------
+
+	$query = "SELECT evtmd_run_flag FROM event_media WHERE evtmd_evt_id = ".$_REQUEST['evt_id'];
+
+	if( !($result = $dbh->query($query)) ) return  array('status'=>'fail', 'errm'=>'delete_item(): cannot determine run status', 'sql'=>$query);
+	
+	if( $result->fetch_assoc()['evtmd_run_flag'] == '1' ) return  array('status'=>'fail', 'errm'=>'delete_item(): cannot delete running event');
+	$result->close();
+
+	//------------------------------------------------------------------
+	$query = "DELETE FROM event_media WHERE evtmd_evt_id = ".$_REQUEST['evt_id'];
+	
+	if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'delete_item(): event_media DELETE error', 'sql'=>$query);
+		
+	//------------------------------------------------------------------
 	$query = "DELETE FROM event WHERE evt_id = ".$_REQUEST['evt_id'];
 	
-	if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'delete_item error', 'sql'=>$query);
+	if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'delete_item(): event DELETE error', 'sql'=>$query);
 		
 	return get_main_table($_REQUEST['conf_id']);
 }
@@ -1487,16 +1661,36 @@ function run_event()
 {
 	global $dbh;
 	
-		//------------------------------------------------------------------
+	//------------------------------------------------------------------
+	//$query = "SELECT * FROM event WHERE evt_upper_id = ".$_REQUEST['conf_id'];
+    //
+	//if( !($result = $dbh->query($query)) ) return  array('status'=>'fail', 'errm'=>'delete_conf() count error', 'sql'=>$query);
+	//
+	//if($result->num_rows > 0) return  array('status'=>'fail', 'errm'=>'conference not empty', 'sql'=>$query);
+	//
+	//$result->close();
 
-	$query = "SELECT * FROM event WHERE evt_upper_id = ".$_REQUEST['conf_id'];
-
-	if( !($result = $dbh->query($query)) ) return  array('status'=>'fail', 'errm'=>'delete_conf() count error', 'sql'=>$query);
+	//------------------------------------------------------------------
+	$query = "UPDATE
+				event_media
+			SET 
+				evtmd_run_flag = -1
+			WHERE
+				evtmd_run_flag = 1";
 	
-	if($result->num_rows > 0) return  array('status'=>'fail', 'errm'=>'conference not empty', 'sql'=>$query);
+	if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'run_event(): reset run flags error', 'sql'=>$query);
 	
-	$result->close();
-
+	//------------------------------------------------------------------
+	$query = "UPDATE
+				event_media
+			SET 
+				evtmd_run_flag = 1
+			WHERE
+				evtmd_evt_id = ".$_REQUEST['evt_id'];
+	
+	if( !($result = $dbh->query($query)) ) return array('status'=>'fail', 'errm'=>'run_event(): set run flag error', 'sql'=>$query);
+	
+	return get_main_table($_REQUEST['conf_id']);
 
 	
 }
@@ -1505,9 +1699,9 @@ function get_media_list()
 {
 	if(!is_valid_req_id('day_num')) return array('status'=>'fail', 'errm'=>'get_media_list(): missing day_num');
 	
-	$dir = 'day'.$_REQUEST['day_num'];
+	$dir = '/home/ftp/Archive/Wowza/TSLconferencevideo/'.$_REQUEST['day_num'].'drus';
 
-	if ($handle = opendir($dir))
+	if ($handle = @opendir($dir))
 	{
 		$media_list = array(); $num = 1;
 		
@@ -1539,7 +1733,7 @@ function get_media_list()
 	if(count($media_list)>0)
 	foreach($media_list as $row)
 	{
-		$html .= '<option data-duration="'.$row['duration'].'" value="'.$row['file'].'">'.$row['duration'].'&nbsp;&nbsp;&nbsp;'.$row['file'].'</option>';
+		$html .= '<option data-duration="'.$row['duration'].'" value="'.$row['file'].'">'.$row['duration'].'&nbsp;&nbsp;|&nbsp;&nbsp;'.$row['file'].'</option>';
 	}
 	
 	return array('status'=>'ok', 'media_list'=>$media_list, 'options_html'=>$html);
