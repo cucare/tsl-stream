@@ -37,6 +37,23 @@ $day_fields = array(
 			'update'=>true,
 			'insert'=>true
 		),
+		'evt_media_file' => array(
+			'type' => 'db',
+			'src' => 'media_list',
+			 
+			'new' => 'option', 
+			'edit' => 'option',
+			'update'=>true,
+			'insert'=>true
+		),
+		'evt_duration' => array(
+			'type' => 'db', 
+			'src' => 'media_list',
+			'new' => 'option', 
+			'edit' => 'option',
+			'update'=>true,
+			'insert'=>true
+		),
 		'btn' => array(
 			'type' => 'button') 
 			//'view' => '<input type="button" class="btn_run" value="RUN"/>',
@@ -106,6 +123,16 @@ if(isset($_REQUEST['function']))
 		break;
 		
 		//------------------------------------------------------------------
+		case 'run_event':
+			$response = run_event();
+		break;
+		
+		//------------------------------------------------------------------
+		case 'get_media_list':
+			$response = get_media_list();
+		break;
+		
+		//------------------------------------------------------------------
 		default:
 			$response = array('status'=>'fail', 'errm'=>'invalid function');
 	}
@@ -169,6 +196,18 @@ $first_conf_id = $conf_data['first_id'];
 				text-align:center;
 				background-color:#aaa;
 			}
+        
+        
+        
+   label, input { display:block; }
+    input.text { margin-bottom:12px; width:95%; padding: .4em; }
+    fieldset { padding:0; border:0; margin-top:25px; }
+    h1 { font-size: 1.2em; margin: .6em 0; }
+    div#users-contain { width: 350px; margin: 20px 0; }
+    div#users-contain table { margin: 1em 0; border-collapse: collapse; width: 100%; }
+    div#users-contain table td, div#users-contain table th { border: 1px solid #eee; padding: .6em 10px; text-align: left; }
+    .ui-dialog .ui-state-error { padding: .3em; }
+    .validateTips { border: 1px solid transparent; padding: 0.3em; }        
         
         </style>
 		<head>
@@ -245,31 +284,58 @@ $(function() {
 	$('.action_radio').change(function(){ exec_request('ffmpeg_control.php?action=select&switch='+$(this).attr('name') + '&value=' + $(this).val()); });
 
 	//------- отправка запроса команды -----------------------------------------------------------
-	function exec_request(href)
-	{
-		refresh_status(href, 'waiting for response...', '#DCB220'); // сообщаем, что запрос отправлен
-
-		$.ajax({
-			url: href,
-			success: function(response){ refresh_status(href, response, 'grey'); },
-			error: function(){ refresh_status(href, 'request failed', 'red'); }
-		});
-	}
+	//function exec_request(href)
+	//{
+	//	refresh_status(href, 'waiting for response...', '#DCB220'); // сообщаем, что запрос отправлен
+    //
+	//	$.ajax({
+	//		url: href,
+	//		success: function(response){ refresh_status(href, response, 'grey'); },
+	//		error: function(){ refresh_status(href, 'request failed', 'red'); }
+	//	});
+	//}
 
 	//------ отображение информации в области служебной информации ------------------------------------------------
-	function refresh_status(href, text, color)
-	{
-		var now = new Date();
-
-		$("#request_str").text(href); // строка запроса
-		$("#status_str").html('<span style="color:'+color+';">'+ now.toString().substring(16) +'<br/>'+ text +'</span>'); // время отправки запроса
-
-		$(".status_cell").addClass('status_highlight'); // выделение цветом служебной области
-		setTimeout(function() { $(".status_cell").removeClass('status_highlight'); }, 300); // снятие выделения цветом через таймаут
-	}
+	//function refresh_status(href, text, color)
+	//{
+	//	var now = new Date();
+    //
+	//	$("#request_str").text(href); // строка запроса
+	//	$("#status_str").html('<span style="color:'+color+';">'+ now.toString().substring(16) +'<br/>'+ text +'</span>'); // время отправки запроса
+    //
+	//	$(".status_cell").addClass('status_highlight'); // выделение цветом служебной области
+	//	setTimeout(function() { $(".status_cell").removeClass('status_highlight'); }, 300); // снятие выделения цветом через таймаут
+	//}
 	
 	//==================================================================
 	
+	dialog_item = $( "#form_item" ).dialog({
+      autoOpen: false,
+      height: 500,
+      width: 700,
+      modal: true,
+      buttons: {
+        "Save": save_item,
+        Cancel: function() {
+          dialog_item.dialog( "close" );
+        }
+      },
+      close: function() {
+        dialog_item.find( "form" )[0].reset();
+      }
+    });
+ 
+    form_item = dialog_item.find( "form" );
+    
+    form_item.on( "submit", function( event ) {
+      event.preventDefault();
+      addUser();
+    });	
+    
+    $( "#btn_get_media_list" ).button().on( "click", function() {
+      dialog_item.dialog( "open" );
+    });
+    
 	//------------------------------------------------------------------
 	$("#btn_add_day").on('click', function(){
 
@@ -387,6 +453,8 @@ $(function() {
 						{
 							var item = day_data[item_num];
 							
+							item.day_num = day_num;
+							
 							items[day_id][item.evt_id] = item;
 							
 							var $tr = make_day_item(item);
@@ -398,7 +466,7 @@ $(function() {
 						}
 					}
 	
-					var empty_item = make_empty_item({"evt_upper_id":day_id, 'day_beg_dt':day_header.evt_beg_dt});
+					var empty_item = make_empty_item({"evt_upper_id":day_id, 'day_beg_dt':day_header.evt_beg_dt, 'day_num':day_num});
 					
 					//empty_item.new = true;
 	
@@ -420,14 +488,52 @@ $(function() {
 	//------------------------------------------------------------------
 	$('body').on('click', '.td_click', function(){
 
-		close_edit_items();
-		
+		//close_edit_items();
+
 		var $tr = $(this).parent('tr');
 
 		var evt_id = $tr.attr('data-evt_id');
 		var day_id = $tr.attr('data-evt_upper_id');
+		var day_num = $tr.attr('data-day_num');
+		
+		var item = items[day_id];
+//alert(JSON.stringify(item));
+		var media_list = '';
+        
+		$.ajax({
+			url: script_name+'?function=get_media_list&conf_id='+conf_id+'&day_num='+day_num,
+			dataType: 'json',
+			success: function(response){
+				//alert(JSON.stringify(response));
+		
+				form_item.find('select').html(response.options_html);
 
-		$tr.replaceWith(make_day_item(items[day_id][evt_id], {'edit':true, 'new':(evt_id == 0 ? true : false)}));
+				form_item.find('input[name="evt_upper_id"]').val(item[evt_id].evt_upper_id);
+				form_item.find('input[name="evt_beg_dt"]').val(item[evt_id].evt_beg_dt);
+				
+				if(evt_id == 0)
+				{
+					form_item.find('input[name="evt_id"]').val(0);
+					form_item.find('input[name="evt_beg_tm"]').val('00:00');
+				}
+				else
+				{
+					form_item.find('input[name="evt_id"]').val(evt_id);
+//alert(item[0].evt_beg_tm);
+					form_item.find('input[name="evt_beg_tm"]').val(item[evt_id].evt_beg_tm);
+					
+					form_item.find('input[name="evt_title"]').val(item[evt_id].evt_title);
+					
+					form_item.find('select option').each(function(){
+						if($(this).val() == item[evt_id].evt_media_file) $(this).prop('selected', true);
+					});
+				}
+				
+				dialog_item.dialog('open');
+			}
+		});
+        
+		//$tr.replaceWith(make_day_item(items[day_id][evt_id], {'edit':true, 'new':(evt_id == 0 ? true : false), 'media_list':media_list}));
 	});
 	
 	//------------------------------------------------------------------
@@ -444,10 +550,16 @@ $(function() {
 	});
 	
 	//------------------------------------------------------------------
-	$('body').on('click', '.btn_save_item', function(){
-		
+	//$('body').on('click', '.btn_save_item', function(){
+	
+	function save_item()
+	{
+		//alert(form_item.find('select').prop('selectedIndex'));
+		//alert(form_item.find('option:selected').val());
+		var duration = form_item.find('option:selected').attr('data-duration');
+
 		$.ajax({
-			url: script_name+'?function=save_item&conf_id='+conf_id+'&'+$('#day_form').serialize(),
+			url: script_name+'?function=save_item&conf_id='+conf_id + '&evt_duration='+duration + '&'+form_item.serialize(),
 			dataType: 'json',
 			success: function(response){
 				
@@ -456,6 +568,8 @@ $(function() {
 					draw_table(response);
 
 					$('#day_table tr[data-evt_id='+response.upd_id+']').children('td').addClass('updated');
+					
+					dialog_item.dialog('close');
 				}
 				else
 				{
@@ -468,7 +582,7 @@ $(function() {
 		});
 
 		//alert(item_id);
-	});
+	}
 	
 	//------------------------------------------------------------------
 	$('body').on('click', '.btn_delete_item', function(){
@@ -633,7 +747,7 @@ $(function() {
 	//------------------------------------------------------------------
 	function make_empty_item(param)
 	{
-		var item = {'new':true};
+		var item = {'new':true, 'day_num':param.day_num};
 		
 		for(var i in day_flds)
 		{
@@ -664,7 +778,7 @@ $(function() {
 	
 		var new_flag = (typeof item.new != 'undefined' && item.new  ? true : false);
 	
-		var $tr = $('<tr data-evt_id="'+item.evt_id+'" data-evt_upper_id="'+item.evt_upper_id+'"></tr>');
+		var $tr = $('<tr data-evt_id="'+item.evt_id+'" data-evt_upper_id="'+item.evt_upper_id+'" data-day_num="'+item.day_num+'"></tr>');
 		
 		var day_id = item.evt_upper_id;
 
@@ -686,6 +800,10 @@ $(function() {
 			{
 				$tr.append(make_hidden(fld, val));
 			}
+			//else if(type == 'option')
+			//{
+			//	$tr.append(make_select(param.media_list));
+			//}
 		}
 		
 		if(mode == 'edit') $tr.addClass('tr_edit');
@@ -693,10 +811,45 @@ $(function() {
 		return $tr;
 	}
 
+	//------------------------------------------------------------------
+	//function make_day_item_tr(item, param)
+	//{
+	//	var tr = '<tr data-evt_id="'+item.evt_id+'" data-evt_upper_id="'+item.evt_upper_id+'" data-day_num="'+item.day_num+'">';
+	//	
+	//	if(mode == 'new')
+	//	{
+	//		tr += '<td class=="day_table"';
+	//	}
+	//	else if(mode == 'edit')
+	//	{
+	//		
+	//	}
+	//	else
+	//	{
+	//		
+	//	}
+	//	
+	//	tr += '</tr>';
+	//}
+	
+	//----------------------------------------------------------------------
+	//function make_select(media_list)
+	//{
+	//	var td = $('<td class="day_table">'+media_list+'</td>');
+	//
+	//	return td;
+	//}
+	
 	//----------------------------------------------------------------------
 	function make_db_td(fld, val, mode, new_flag)
 	{
 		if(typeof day_fields[fld].td != 'undefined' && day_fields[fld].td == 'skip') return '';
+		
+		edit_val_type = '';
+		if(typeof day_fields[fld].edit != 'undefined') var edit_val_type = day_fields[fld].edit;
+		
+		new_val_type = ''
+		if(typeof day_fields[fld].new != 'undefined') var new_val_type = day_fields[fld].new;
 		
 		var td = $('<td class="day_table"></td>');
 		
@@ -852,7 +1005,36 @@ function make_button_td(mode, new_flag)
 </table>
 </form>
 
+<div id="form_item" title="edit data">
+  <p class="validateTips">торопышка был голодный.</p>
+ 
+  <form>
+    <fieldset>
+      <input type="hidden" name="evt_upper_id" id="evt_upper_id"/>
+      <input type="hidden" name="evt_id" id="evt_id"/>
+
+      <label for="evt_beg_dt">Дата начала</label>
+      <input type="text" name="evt_beg_dt" id="evt_beg_dt" class="text ui-widget-content ui-corner-all"/>
+      
+      <label for="evt_beg_tm">Время начала</label>
+      <input type="text" name="evt_beg_tm" id="evt_beg_tm" class="text ui-widget-content ui-corner-all"/>
+      
+      <label for="evt_title">Название</label>
+      <input type="text" name="evt_title" id="evt_title" class="text ui-widget-content ui-corner-all"/>
+ 
+      <label for="evt_media_file">Файл</label>
+      <select name="evt_media_file" id="evt_media_file"></select>
+      
+      <!-- Allow form submission with keyboard without duplicating the dialog button -->
+      <input type="submit" tabindex="-1" style="position:absolute; top:-1000px"/>
+    </fieldset>
+  </form>
+</div>
+
 <input type="button" id="btn_add_day" value="add new day"/>
+
+<hr/>
+<input type="button" id="btn_get_media_list" value="get list"/>
 
 </body>
 </html>
@@ -966,7 +1148,9 @@ function get_day($p_day_id)
 		-- DATE_ADD(evt_beg_dt, INTERVAL 1 DAY) AS beg_dt_next,
 		evt_beg_tm,
 		evt_end_dt,
-		evt_end_tm
+		evt_end_tm,
+		evt_media_file,
+		evt_duration
 	FROM
 		event
 	WHERE
@@ -1299,7 +1483,67 @@ function delete_conf()
 }
 
 //=======================================================================================================
+function run_event()
+{
+	global $dbh;
+	
+		//------------------------------------------------------------------
+
+	$query = "SELECT * FROM event WHERE evt_upper_id = ".$_REQUEST['conf_id'];
+
+	if( !($result = $dbh->query($query)) ) return  array('status'=>'fail', 'errm'=>'delete_conf() count error', 'sql'=>$query);
+	
+	if($result->num_rows > 0) return  array('status'=>'fail', 'errm'=>'conference not empty', 'sql'=>$query);
+	
+	$result->close();
+
+
+	
+}
 //=======================================================================================================
+function get_media_list()
+{
+	if(!is_valid_req_id('day_num')) return array('status'=>'fail', 'errm'=>'get_media_list(): missing day_num');
+	
+	$dir = 'day'.$_REQUEST['day_num'];
+
+	if ($handle = opendir($dir))
+	{
+		$media_list = array(); $num = 1;
+		
+		while (false !== ($entry = readdir($handle)))
+		{
+			$ffmpeg = '';
+			
+			if ($entry != "." && $entry != ".." && !is_dir("$dir/$entry"))
+			{
+				$entry_norm = preg_replace('/\s/', '\ ', $entry);
+				$ffmpeg = `ffmpeg -i $dir/$entry_norm 2>&1`;
+				
+				if(preg_match('/Duration: (\d+?:\d\d:\d\d)\.\d/m', $ffmpeg, $match))
+				{
+					
+					if($match[1] == '00:00:00')
+						continue;
+					else
+						array_push($media_list, array('file'=>$entry, 'duration'=>$match[1], 'num'=>$num++));
+				}
+			}
+		}
+		closedir($handle);
+	}
+	else
+		return array('status'=>'fail', 'errm'=>"get_media_list(): cannot opendir $dir");
+		
+	$html = '<option data-duration="00:00:00" value="0">&nbsp;</option>';
+	if(count($media_list)>0)
+	foreach($media_list as $row)
+	{
+		$html .= '<option data-duration="'.$row['duration'].'" value="'.$row['file'].'">'.$row['duration'].'&nbsp;&nbsp;&nbsp;'.$row['file'].'</option>';
+	}
+	
+	return array('status'=>'ok', 'media_list'=>$media_list, 'options_html'=>$html);
+}
 //=======================================================================================================
 //=======================================================================================================
 //=======================================================================================================
