@@ -1202,7 +1202,7 @@ function make_button_td(mode, new_flag)
 </div>
 
 <div id="form_item" title="редактирование события">
-  <p class="validateTips">проглотил утюг холодный.</p>
+  <!-- p class="validateTips">проглотил утюг холодный.</p -->
  
   <form>
     <fieldset>
