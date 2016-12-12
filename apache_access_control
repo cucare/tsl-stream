@@ -17,7 +17,7 @@ require valid-user
 	
       htpasswd -mbc .htpasswd юзер пароль
 
-Создает файл паролей в домашней директории.
+Она создает файл паролей в домашней директории.
 
 ------------------------------------------
 
@@ -25,7 +25,7 @@ require valid-user
 
       /etc/apache2/apache2.conf
 
-В блоке
+В этом файле в блоке
 
 <Directory /var/www/>
 	Options Indexes FollowSymLinks
