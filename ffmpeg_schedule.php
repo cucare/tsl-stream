@@ -237,6 +237,8 @@ $(function() {
 	
 	var day_span = 0;
 
+	var confirm_function;
+	
 	for(var i in day_flds)
 	{
 		var fld = day_flds[i];
@@ -318,6 +320,40 @@ $(function() {
 	
 	//==================================================================
 	
+	//------------------------------------------------------------------
+	dialog_info = $( "#info" ).dialog({
+      autoOpen: false,
+      height: 400,
+      width: 500,
+      modal: true,
+      buttons: {
+        "OK": function() {
+          dialog_info.dialog( "close" );
+        }
+      }
+    });
+ 
+	//------------------------------------------------------------------
+	dialog_confirm = $( "#confirm" ).dialog({
+      autoOpen: false,
+      height: 400,
+      width: 500,
+      modal: true,
+      buttons: {
+        "OK": function() {
+			dialog_confirm.dialog( "close" );
+			confirm_callback(true);
+		},
+        "Cancel": function() {
+			dialog_confirm.dialog( "close" );
+			confirm_callback(false);
+		}
+      }
+    });
+ 
+	function confirm_callback(value){
+		if(value) confirm_function();
+    }
 	//------------------------------------------------------------------
 	dialog_conf = $( "#form_conf" ).dialog({
       autoOpen: false,
@@ -651,9 +687,13 @@ $(function() {
 	//$('body').on('click', '.btn_delete_item', function(){
 	function delete_item()
 	{
+		confirm_function = delete_item_confirmed;
 		
-		if( !confirm('are you sure?') ) return false;
-
+		dialog_confirm.dialog('open');
+	}
+			
+	function delete_item_confirmed()
+	{
 		var item_id = form_item.find('input[name="evt_id"]').val();
 		
 		//var item_id = $(this).parent().parent().attr('data-evt_id');
@@ -671,7 +711,9 @@ $(function() {
 				}
 				else
 				{
-					alert(response.errm);
+					//alert(response.errm);
+					dialog_info.find('p').text(response.errm);
+					dialog_info.dialog( "open" );
 				}
 			},
 			error: function(response){
@@ -704,7 +746,7 @@ $(function() {
 	function make_day_header(day_num, day_id, day_beg_dt)
 	{
 		var day_header = day_headers[day_id];
-		var title = 'DAY '+day_num;
+		var title = 'День '+day_num;
 		var day_date = ''
 		
 		if( ! (!day_header.evt_title) ) title = day_header.evt_title;
@@ -786,7 +828,9 @@ $(function() {
 				}
 				else
 				{
-					alert(response.errm);
+					//alert(response.errm);
+					dialog_info.find('p').text(response.errm);
+					dialog_info.dialog( "open" );
 				}
 			},
 			error: function(response){
@@ -958,7 +1002,7 @@ $(function() {
 		//	+ 'дата: <input type="text" name="evt_beg_dt" value="<?= date("Y-m-d") ?>"/>&nbsp;&nbsp;&nbsp;'
 		//	+ 'название: <input type="text" name="evt_title" value=""/>&nbsp;&nbsp;&nbsp;'
 		//	+ '<input type="button" id="save_new_conf" value="SAVE"/>'
-		//	+ '<input type="button" id="btn_add_conf_cancel" value="cancel"/>'
+		//	+ '<input type="button" id="btn_ю_cancel" value="cancel"/>'
 		//	+'</form>');
 	});
 	
@@ -984,7 +1028,9 @@ $(function() {
 				}
 				else
 				{
-					alert(response.errm);
+					//alert(response.errm);
+					dialog_info.find('p').text(response.errm);
+					dialog_info.dialog( "open" );
 				}
 			},
 			error: function(response){
@@ -1012,10 +1058,14 @@ $(function() {
 					conf_id = response.conf_id;
 					
 					$('div#div_conf_dd').html(response.confs_dd.html);
+					
+					dialog_conf.dialog( "close" );
 				}
 				else
 				{
-					alert(response.errm);
+					//alert(response.errm);
+					dialog_info.find('p').text(response.errm);
+					dialog_info.dialog( "open" );
 				}
 			},
 			error: function(response){
@@ -1036,9 +1086,23 @@ $(function() {
 		dialog_conf.dialog('open');
 	});
 	
-	
+	//----------------------------------------------------------------
+	$('.btn_test').click(function(){
+
+		var name_fun = $(this).attr('name');
+		
+		confirm_function = window[name_fun];
+        
+        dialog_confirm.dialog( "open" );
+	});
 });
 //======================================================================
+
+//---------------------------------------------------------------------
+function test1()
+{
+	alert('test #1');
+}
 
 //----------------------------------------------------------------------
 function make_hidden(fld, val)
@@ -1082,7 +1146,8 @@ function make_button_td(mode, new_flag)
 
 <div id="add_conf"><input type="button" id="btn_add_conf" value="add conference"/></div><br/>
 
-<input type="button" id="delete_conf" value="delete conference"/>
+<!-- input type="button" class="btn_test" name="test1" id="btn_test1" value="test1"/>
+<input type="button" class="btn_test" name="test2" id="btn_test2" value="test2"/ -->
 
 <div id="conf_title"><h2></h2></div>
 
@@ -1090,6 +1155,14 @@ function make_button_td(mode, new_flag)
 <table class="day_table" id="day_table" width="70%">
 </table>
 </form>
+
+<div id="info" title="info">
+<p></p>
+</div>
+
+<div id="confirm" title="">
+<p>Подтвердите действие</p>
+</div>
 
 <div id="form_conf" title="редактирование заголовка конференции">
   <form>
@@ -1554,7 +1627,7 @@ function delete_item()
 
 	if( !($result = $dbh->query($query)) ) return  array('status'=>'fail', 'errm'=>'delete_item(): cannot determine run status', 'sql'=>$query);
 	
-	if( $result->fetch_assoc()['evtmd_run_flag'] == '1' ) return  array('status'=>'fail', 'errm'=>'delete_item(): cannot delete running event');
+	if( $result->fetch_assoc()['evtmd_run_flag'] == '1' ) return  array('status'=>'fail', 'errm'=>'нельзя удалить активное событие');
 	$result->close();
 
 	//------------------------------------------------------------------
@@ -1601,7 +1674,7 @@ function delete_day_header()
 
 	if( !($result = $dbh->query($query)) ) return  array('status'=>'fail', 'errm'=>'delete_day_header() count error', 'sql'=>$query);
 	
-	if($result->num_rows > 0) return  array('status'=>'fail', 'errm'=>'day not empty', 'sql'=>$query);
+	if($result->num_rows > 0) return  array('status'=>'fail', 'errm'=>'нельзя удалить: есть содержимое', 'sql'=>$query);
 	
 	$result->close();
 
@@ -1627,6 +1700,8 @@ function save_conf()
 
 	$result->close();
 	
+	if(!preg_match('/\S/', $_REQUEST['evt_title']))  return array('status'=>'fail', 'errm'=>'необходимо задать название');
+		
 	if(is_valid_req_id('evt_id'))
 	{
 		//------------------------------------------------------------------
@@ -1666,7 +1741,7 @@ function delete_conf()
 
 	if( !($result = $dbh->query($query)) ) return  array('status'=>'fail', 'errm'=>'delete_conf() count error', 'sql'=>$query);
 	
-	if($result->num_rows > 0) return  array('status'=>'fail', 'errm'=>'conference not empty', 'sql'=>$query);
+	if($result->num_rows > 0) return  array('status'=>'fail', 'errm'=>'нельзя удалить: есть содержимое', 'sql'=>$query);
 	
 	$result->close();
 
@@ -1756,7 +1831,7 @@ function get_media_list()
 	else
 		return array('status'=>'fail', 'errm'=>"get_media_list(): cannot opendir $dir");
 		
-	$html = '<option data-duration="00:00:00" value="0">&nbsp;</option>';
+	$html = '<option data-duration="00:00:00" value="">&nbsp;</option>';
 	if(count($media_list)>0)
 	foreach($media_list as $row)
 	{

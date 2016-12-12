@@ -8,5 +8,6 @@ create table event_media
 	evtmd_evt_id int not null,
 	evtmd_run_flag tinyint default 0,
 	evtmd_media_file varchar(1000) default '',
-	evtmd_duration varchar(9) default '00:00:00'
+	evtmd_duration time default '00:00:00',
+	evtmd_start timestamp
 );
