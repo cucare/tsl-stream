@@ -1,0 +1,47 @@
+1) Создать файл
+
+      .htaccess
+
+в папке сервера, где лежат скрипты, которые нужно закрыть паролем.
+
+Его содержимое:
+
+AuthType Basic
+AuthName "cucare"
+AuthUserFile /абсолютный-путь-к-домашней-директории/.htpasswd
+require valid-user 
+
+-----------------------------------------
+
+2) Выполнить команду
+	
+      htpasswd -mbc .htpasswd юзер пароль
+
+Создает файл паролей в домашней директории.
+
+------------------------------------------
+
+3) Отредактировать файл
+
+      /etc/apache2/apache2.conf
+
+В блоке
+
+<Directory /var/www/>
+	Options Indexes FollowSymLinks
+	AllowOverride None
+	Require all granted
+</Directory>
+
+строку
+	AllowOverride None
+исправить на
+	AllowOverride All
+
+----------------------------------------
+
+4) Перезапустить апач
+
+      sudo service apache2 restart
+
+=========================================
